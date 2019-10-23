@@ -1,10 +1,9 @@
 import os
 import logging
 
-
 class Config:
 
-    DEFAULTS = { 
+    DEFAULTS = {
         "LOGGING_LEVEL_CONSOLE": logging.INFO,  # See documentation of Logging package
         "LOGGING_LEVEL_FILE": logging.ERROR,
         "LOGGING_FILE": ('/var/log/paradox.log', [type(None), str]),  # or set to file path : '/var/log/paradox.log'
@@ -136,6 +135,9 @@ class Config:
         "IP_INTERFACE_BIND_PORT": (10000, int, (1, 65535)),
         "IP_INTERFACE_PASSWORD": (b'paradox', [bytes, type(None)]),
 
+        # Passive mode
+        "PASSIVE": True,
+        "PASSIVE_PANEL_TYPE": "MAGELLAN_MG5050",
         # Dummy Interface for testing
         "DUMMY_INTERFACE_ENABLE": False,
     }
@@ -237,6 +239,12 @@ class Config:
                     v = int(v)
 
                 setattr(Config, opt, v)
+        
+        if Config.PASSIVE:
+            #logging.warning("WARNING: PASSIVE MODE ENABLED")
+            if Config.CONNECTION_TYPE != "Serial":
+                #logging.error("Only serial connections can be passive")
+                raise(Exception("CONFIG ERROR"))
 
         Config.CONFIG_LOADED = True
 

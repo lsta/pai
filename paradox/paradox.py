@@ -106,6 +106,15 @@ class Paradox:
 
         # Reset all states
         self.reset()
+        
+        if cfg.PASSIVE:
+            labels = dict()
+            self.run = State.RUN
+            self.panel = create_panel(self, cfg.PASSIVE_PANEL_TYPE)
+            ps.sendMessage('panel_detected', panel=dict(product_id=0, model=0, firmware_version=0, serial_number=0))
+
+            return True
+        
         self.run = State.INIT
 
         self.connection.timeout(0.5)
@@ -113,6 +122,7 @@ class Paradox:
         if not self.panel:
             self.panel = create_panel(self)
             self.connection.variable_message_length(self.panel.variable_message_length)
+        
 
         try:
             logger.info("Initiating communication")
@@ -206,7 +216,7 @@ class Paradox:
 
         while self.run not in(State.STOP, State.ERROR):
             tstart = time.time()
-            if self.run == State.RUN:
+            if self.run == State.RUN and not cfg.PASSIVE:
                 try:
                     result = await asyncio.gather(*[self._status_request(i) for i in cfg.STATUS_REQUESTS])
                     merged = deep_merge(*result, extend_lists=True)
@@ -231,7 +241,7 @@ class Paradox:
             try:
                 await asyncio.wait_for(self.loop_wait_event.wait(), max_wait_time)
             except asyncio.TimeoutError:
-                logger.debug("Loop timeout")  # TODO: Remove
+                #logger.debug("Loop timeout")  # TODO: Remove
                 pass
             finally:
                 self.loop_wait_event.clear()
@@ -303,7 +313,7 @@ class Paradox:
 
             try:
                 async with self.request_lock:
-                    if message is not None:
+                    if message is not None and not cfg.PASSIVE:
                         self.connection.timeout(timeout)
                         self.connection.write(message)
 
@@ -425,8 +435,13 @@ class Paradox:
 
             if cfg.LOGGING_DUMP_EVENTS:
                 logger.debug("Event: {}".format(evt))
-
-            element = self.storage.get_container_object(evt.type, evt.id)
+            
+            element = self.storage.get_container_object(evt.type, evt.id, create_if_missing=cfg.PASSIVE)
+            
+            if cfg.PASSIVE:
+                if element.get('label') is None:
+                    element['label'] = evt.label
+                    element['key'] = evt.label
 
             # Temporary to catch labels/properties in wrong places
             # TODO: REMOVE
@@ -444,7 +459,7 @@ class Paradox:
                             logger.warning(
                                 "Labels differ {} != {} in {}/{}".format(element.get("label"), evt.label, evt.type, evt.label))
             # Temporary end
-            
+
             # The event has changes. Update the state
             if len(evt.change) > 0 and element:
                 self.update_properties(evt.type, evt.id, evt.change)
@@ -530,7 +545,7 @@ class Paradox:
         """Handle ErrorMessage"""
         error_enum = message.fields.value.message
 
-        if error_enum == 'panel_not_connected':
+        if error_enum == 'panel_not_connected' and not cfg.PASSIVE:
             self.disconnect()
         else:
             message = self.panel.get_error_message(error_enum)
