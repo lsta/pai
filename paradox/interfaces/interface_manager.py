@@ -66,6 +66,8 @@ class InterfaceManager:
         # Load IP Interface
         if self.conf.IP_INTERFACE_ENABLE:
             try:
+                if self.conf.PASSIVE:
+                    raise AssertionError("IP Interface is not allowed in PASSIVE mode")
                 logger.info("Using IP Interface")
                 from paradox.interfaces.ip_interface import IPInterface
                 self.register(IPInterface())

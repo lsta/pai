@@ -68,6 +68,8 @@ class Paradox:
                 self._connection = SerialCommunication(self.on_connection_message, port=cfg.SERIAL_PORT,
                                                       baud=cfg.SERIAL_BAUD)
             elif cfg.CONNECTION_TYPE == 'IP':
+                if cfg.PASSIVE:
+                    raise AssertionError("Passive mode can only be used with Serial connection")
                 logger.info("Using IP Connection")
 
                 self._connection = IPConnection(self.on_connection_message, host=cfg.IP_CONNECTION_HOST,
@@ -108,89 +110,88 @@ class Paradox:
         self.reset()
         
         if cfg.PASSIVE:
-            labels = dict()
             self.run = State.RUN
             self.panel = create_panel(self, cfg.PASSIVE_PANEL_TYPE)
             ps.sendMessage('panel_detected', panel=dict(product_id=0, model=0, firmware_version=0, serial_number=0))
 
             return True
-        
-        self.run = State.INIT
+        else:
+            self.run = State.INIT
 
-        self.connection.timeout(0.5)
+            self.connection.timeout(0.5)
 
-        if not self.panel:
-            self.panel = create_panel(self)
-            self.connection.variable_message_length(self.panel.variable_message_length)
-        
-
-        try:
-            logger.info("Initiating communication")
-
-            initiate_reply = await self.send_wait(self.panel.get_message('InitiateCommunication'), None, reply_expected=0x07)
-
-            if initiate_reply:
-                model = initiate_reply.fields.value.label.strip(b'\0 ').decode(cfg.LABEL_ENCODING)
-                firmware_version = "{}.{} build {}".format(
-                    initiate_reply.fields.value.application.version,
-                    initiate_reply.fields.value.application.revision,
-                    initiate_reply.fields.value.application.build
-                )
-                serial_number = hexlify(initiate_reply.fields.value.serial_number).decode()
-
-                logger.info("Found Panel {} version {}".format(model, firmware_version))
-            else:
-                raise ConnectionError("Panel did not replied to InitiateCommunication")
+            if not self.panel:
+                self.panel = create_panel(self)
+                self.connection.variable_message_length(self.panel.variable_message_length)
 
 
-            logger.info("Starting communication")
-            reply = await self.send_wait(self.panel.get_message('StartCommunication'),
-                                   args=dict(source_id=0x02), reply_expected=0x00)
+            try:
+                logger.info("Initiating communication")
 
-            if reply is None:
-                raise ConnectionError("Panel did not replied to StartCommunication")
+                initiate_reply = await self.send_wait(self.panel.get_message('InitiateCommunication'), None, reply_expected=0x07)
 
-            if reply.fields.value.product_id is not None:
-                self.panel = create_panel(self, reply.fields.value.product_id)  # Now we know what panel it is. Let's
-                # recreate panel object.
-                ps.sendMessage('panel_detected', panel=dict(product_id=reply.fields.value.product_id, model=model, firmware_version=firmware_version, serial_number=serial_number))
+                if initiate_reply:
+                    model = initiate_reply.fields.value.label.strip(b'\0 ').decode(cfg.LABEL_ENCODING)
+                    firmware_version = "{}.{} build {}".format(
+                        initiate_reply.fields.value.application.version,
+                        initiate_reply.fields.value.application.revision,
+                        initiate_reply.fields.value.application.build
+                    )
+                    serial_number = hexlify(initiate_reply.fields.value.serial_number).decode()
 
-            result = await self.panel.initialize_communication(reply, cfg.PASSWORD)
-            if not result:
-                raise ConnectionError("Failed to initialize communication")
-
-            if cfg.SYNC_TIME:
-                await self.sync_time()
-
-            if cfg.DEVELOPMENT_DUMP_MEMORY:
-                if hasattr(self.panel, 'dump_memory') and callable(self.panel.dump_memory):
-                    logger.warning("Requested memory dump. Dumping...")
-
-                    await self.panel.dump_memory()
-                    logger.warning("Memory dump completed. Exiting pai.")
-                    raise SystemExit()
+                    logger.info("Found Panel {} version {}".format(model, firmware_version))
                 else:
-                    logger.warning("Requested memory dump, but current panel type does not support it yet.")
+                    raise ConnectionError("Panel did not replied to InitiateCommunication")
 
-            labels = await self.panel.load_labels()
-            ps.sendMessage('labels_loaded', data=labels)
 
-            logger.info("Connection OK")
-            self.run = State.RUN
-            self.request_status_refresh()  # Trigger status update
+                logger.info("Starting communication")
+                reply = await self.send_wait(self.panel.get_message('StartCommunication'),
+                                       args=dict(source_id=0x02), reply_expected=0x00)
 
-            ps.sendMessage('connected')
-            return True
-        except asyncio.TimeoutError as e:
-            logger.error("Timeout while connecting to panel: %s" % str(e))
-        except ConnectionError as e:
-            logger.error("Failed to connect: %s" % str(e))
-        except Exception:
-            logger.exception("Connect error")
+                if reply is None:
+                    raise ConnectionError("Panel did not replied to StartCommunication")
 
-        self.run = State.ERROR
+                if reply.fields.value.product_id is not None:
+                    self.panel = create_panel(self, reply.fields.value.product_id)  # Now we know what panel it is. Let's
+                    # recreate panel object.
+                    ps.sendMessage('panel_detected', panel=dict(product_id=reply.fields.value.product_id, model=model, firmware_version=firmware_version, serial_number=serial_number))
 
-        return False
+                result = await self.panel.initialize_communication(reply, cfg.PASSWORD)
+                if not result:
+                    raise ConnectionError("Failed to initialize communication")
+
+                if cfg.SYNC_TIME:
+                    await self.sync_time()
+
+                if cfg.DEVELOPMENT_DUMP_MEMORY:
+                    if hasattr(self.panel, 'dump_memory') and callable(self.panel.dump_memory):
+                        logger.warning("Requested memory dump. Dumping...")
+
+                        await self.panel.dump_memory()
+                        logger.warning("Memory dump completed. Exiting pai.")
+                        raise SystemExit()
+                    else:
+                        logger.warning("Requested memory dump, but current panel type does not support it yet.")
+
+                labels = await self.panel.load_labels()
+                ps.sendMessage('labels_loaded', data=labels)
+
+                logger.info("Connection OK")
+                self.run = State.RUN
+                self.request_status_refresh()  # Trigger status update
+
+                ps.sendMessage('connected')
+                return True
+            except asyncio.TimeoutError as e:
+                logger.error("Timeout while connecting to panel: %s" % str(e))
+            except ConnectionError as e:
+                logger.error("Failed to connect: %s" % str(e))
+            except Exception:
+                logger.exception("Connect error")
+
+            self.run = State.ERROR
+
+            return False
 
     async def sync_time(self):
         logger.debug("Synchronizing panel time")
@@ -241,7 +242,6 @@ class Paradox:
             try:
                 await asyncio.wait_for(self.loop_wait_event.wait(), max_wait_time)
             except asyncio.TimeoutError:
-                #logger.debug("Loop timeout")  # TODO: Remove
                 pass
             finally:
                 self.loop_wait_event.clear()
@@ -297,6 +297,9 @@ class Paradox:
                   timeout=0.5,
                   reply_expected=None) -> Optional[Container]:
 
+        if cfg.PASSIVE:
+            raise RuntimeError("send_wait should not be used in PASSIVE mode")
+
         # Connection closed
         if not self.connection.connected:
             raise ConnectionError('Not connected')
@@ -313,7 +316,7 @@ class Paradox:
 
             try:
                 async with self.request_lock:
-                    if message is not None and not cfg.PASSIVE:
+                    if message is not None:
                         self.connection.timeout(timeout)
                         self.connection.write(message)
 
@@ -334,6 +337,9 @@ class Paradox:
         return None  # Probably it needs to throw an exception instead of returning None
 
     def control_zone(self, zone: str, command: str) -> bool:
+        if cfg.PASSIVE:
+            raise AssertionError("Zone controlling is not possible in PASSIVE mode")
+
         command = command.lower()
         logger.debug("Control Zone: {} - {}".format(zone, command))
 
@@ -361,6 +367,9 @@ class Paradox:
         return accepted
 
     def control_partition(self, partition: str, command: str) -> bool:
+        if cfg.PASSIVE:
+            raise AssertionError("Zone controlling is not possible in PASSIVE mode")
+
         command = command.lower()
         logger.debug("Control Partition: {} - {}".format(partition, command))
 
@@ -388,6 +397,9 @@ class Paradox:
         return accepted
 
     def control_output(self, output, command) -> bool:
+        if cfg.PASSIVE:
+            raise AssertionError("Zone controlling is not possible in PASSIVE mode")
+
         command = command.lower()
         logger.debug("Control Output: {} - {}".format(output, command))
 
