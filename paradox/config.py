@@ -18,16 +18,16 @@ class Config:
         "DEVELOPMENT_DUMP_MEMORY": False,
 
         # Connection Type
-        "CONNECTION_TYPE": ('Serial', str, ['IP', 'Serial']),         # Serial or IP
+        "CONNECTION_TYPE": ('IP', str, ['IP', 'Serial']),         # Serial or IP
 
         # Serial Connection Details
         "SERIAL_PORT": '/dev/ttyS1',                                  # Pathname of the Serial Port
         "SERIAL_BAUD": 9600,                                          # Baud rate of the Serial Port. Use 38400(default setting) or 57600 for EVO
 
         # IP Connection Details
-        "IP_CONNECTION_HOST": '127.0.0.1',                            # IP Module address when using direct IP Connection
+        "IP_CONNECTION_HOST": '192.168.20.200',                            # IP Module address when using direct IP Connection
         "IP_CONNECTION_PORT": (10000, int, (1, 65535)),               # IP Module port when using direct IP Connection
-        "IP_CONNECTION_PASSWORD": (b'paradox', [bytes, type(None)]),  # IP Module password. "paradox" is default.
+        "IP_CONNECTION_PASSWORD": (b'securetech', [bytes, type(None)]),  # IP Module password. "paradox" is default.
         "IP_CONNECTION_SITEID": (None, [str, type(None)]),            # If defined, connection will be made through this method.
         "IP_CONNECTION_EMAIL": (None, [str, type(None)]),             # Email registered in the site
         "IP_CONNECTION_PANEL_SERIAL": (None, [str, type(None)]),      # Serial number to be used in multi-panel sites. None for first
