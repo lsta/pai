@@ -59,7 +59,7 @@ class Config:
         "MQTT_BIND_ADDRESS": '127.0.0.1',            # MQTT Bind address
         "MQTT_BIND_PORT": 0,                         # MQTT Bind port
         "MQTT_REPUBLISH_INTERVAL": (60 * 60 * 12, int, (60, 0xFFFFFFFF)),    # Interval for republishing all data
-        "MQTT_HOMEASSISTANT_AUTODISCOVERY_ENABLE": False,
+        "MQTT_HOMEASSISTANT_AUTODISCOVERY_ENABLE": True,
 
         # MQTT Topics
         "MQTT_BASE_TOPIC": 'paradox',             # Root of all topics
