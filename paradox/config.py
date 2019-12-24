@@ -18,7 +18,7 @@ class Config:
         "DEVELOPMENT_DUMP_MEMORY": False,
 
         # Connection Type
-        "CONNECTION_TYPE": ('IP', str, ['IP', 'Serial']),         # Serial or IP
+        "CONNECTION_TYPE": ('IP', str, ['IP', 'IP']),         # Serial or IP
 
         # Serial Connection Details
         "SERIAL_PORT": '/dev/ttyS1',                                  # Pathname of the Serial Port
