@@ -49,12 +49,12 @@ class Config:
         "PUSH_UPDATE_WITHOUT_CHANGE": False,       # Always notify interfaces of all changes
 
         # MQTT
-        "MQTT_ENABLE": False,                        # Enable MQTT Interface
+        "MQTT_ENABLE": True,                        # Enable MQTT Interface
         "MQTT_HOST": 'localhost',                    # Hostname or address
         "MQTT_PORT": (1883, int, (1, 65535)),        # TCP Port
         "MQTT_KEEPALIVE": (60, int, (1, 3600)),      # Keep alive
-        "MQTT_USERNAME": (None, [str, type(None)]),  # MQTT Username for authentication
-        "MQTT_PASSWORD": (None, [str, type(None)]),  # MQTT Password
+        "MQTT_USERNAME": 'alarm',  # MQTT Username for authentication
+        "MQTT_PASSWORD": 'alarm',  # MQTT Password
         "MQTT_RETAIN": True,                         # Publish messages with Retain
         "MQTT_BIND_ADDRESS": '127.0.0.1',            # MQTT Bind address
         "MQTT_BIND_PORT": 0,                         # MQTT Bind port
